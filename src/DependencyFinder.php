@@ -78,7 +78,7 @@ class DependencyFinder {
             $filePath = $this->findFileContainingStatement($fullyQualifiedImportName);
             if (!$filePath) {
                 if ($throwOnMissing) {
-                    echo 'Could not find ' . $fullyQualifiedImportName . ' in any file' . PHP_EOL;
+                    echo 'ERROR: Could not find ' . $fullyQualifiedImportName . ' in any file' . PHP_EOL;
                     exit(1);
                 }
             } else if (!in_array($filePath, $dependentFiles)) {
