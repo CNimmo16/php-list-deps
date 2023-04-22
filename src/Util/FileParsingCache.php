@@ -2,15 +2,17 @@
 
 namespace Cnimmo\ListDeps\Util;
 
-use Cnimmo\ListDeps\Util\ParsedDoc;
+use Cnimmo\ListDeps\Singletons\Parser;
 use PhpParser\Node;
 use PhpParser\NodeFinder;
+use RecursiveCallbackFilterIterator;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use RecursiveRegexIterator;
 use RegexIterator;
+use SplFileInfo;
 
-class Struct_ParsedFileInfo {
+class ParsedFileInfo {
     private string $namespace;
     private array $declaredImportableStatementNames;
     private string $filePath;
@@ -19,18 +21,31 @@ class Struct_ParsedFileInfo {
         $this->filePath = $filePath;
     }
 
-    private function getStmts() {
-        return (new ParsedDoc($this->filePath, false))->run()->stmts;
+    private function getStatements() {
+        return Parser::parse($this->filePath);
     }
 
     public function getNamespace() {
         if (!isset($this->namespace)) {
-            [$namespace] = (new NodeFinder)->find($this->getStmts(), function(Node $node) {
+            $namespaces = (new NodeFinder)->find($this->getStatements(), function(Node $node) {
                 return $node instanceof Node\Stmt\Namespace_;
             });
-            $this->namespace = $namespace->name->toString();
+            $namespaceNames = array_unique(
+                array_map(function(Node\Stmt\Namespace_ $namespace) {
+                    if (!$namespace->name) {
+                        return null;
+                    }
+                    return $namespace->name->toString();
+                }, $namespaces)
+            );
+            if (count($namespaceNames) > 1) {
+                throw new \Exception('Multiple namespaces in file ' . $this->filePath);
+            }
+            if (count($namespaceNames) === 1) {
+                $this->namespace = $namespaceNames[0];
+            }
         }
-        return $this->namespace;
+        return $this->namespace ?? null;
     }
 
     public function getFullyQualifiedNameForStatement(Node $statement) {
@@ -39,7 +54,7 @@ class Struct_ParsedFileInfo {
 
     public function getDeclaredImportableStatementNames() {
         if (!isset($this->declaredImportableStatementNames)) {
-            $statements = (new NodeFinder)->find($this->getStmts(), function(Node $node) {
+            $statements = (new NodeFinder)->find($this->getStatements(), function(Node $node) {
                 return $node instanceof Node\Stmt\ClassLike
                     || $node instanceof Node\Stmt\Function_
                     || $node instanceof Node\Stmt\Const_;
@@ -58,21 +73,46 @@ class FileParsingCache {
      */
     private static $allFilesInfo = [];
 
-    public static function init($rootPath) {
-        $directoryIterator = new RecursiveIteratorIterator(
-            new RecursiveDirectoryIterator($rootPath)
-        );
-        $fileIterator = new RegexIterator($directoryIterator, '/^.+\.php$/i', RecursiveRegexIterator::GET_MATCH);
+    public static function init($rootPath, $ignorePaths) {
+        $directoryIterator = new RecursiveDirectoryIterator($rootPath);
+
+        $filterIterator = new RecursiveCallbackFilterIterator($directoryIterator, function (SplFileInfo $current) use ($ignorePaths) {
+            if ($current->isFile() && $current->getExtension() !== 'php') {
+                return false;
+            }
+            $filePath = $current->getPath() . '/' . $current->getFileName();
+            return !in_array($filePath, $ignorePaths);
+        });
+
+        $recursiveIterator = new RecursiveIteratorIterator($filterIterator);
+
+        $files = new RegexIterator($recursiveIterator, '/^.+\.php$/i', RecursiveRegexIterator::GET_MATCH);
         
-        foreach($fileIterator as [$filePath]) {
-            self::$allFilesInfo[$filePath] = new Struct_ParsedFileInfo($filePath);
+        foreach($files as [$filePath]) {
+            self::$allFilesInfo[$filePath] = new ParsedFileInfo($filePath);
         }
     }
-
+    
     public static function getAllNamespaces() {
-        return array_map(function($fileInfo) {
-            return $fileInfo->getNamespace();
-        }, self::$allFilesInfo);
+        return array_values(
+            array_unique(
+                array_filter(
+                    array_map(function($fileInfo) {
+                        return $fileInfo->getNamespace();
+                    }, self::$allFilesInfo)
+                )
+            )
+        );
+    }
+
+    public static function getAllParentNamespaces() {
+        return array_values(array_unique(array_filter(array_map(function($fileInfo) {
+            if (!$fileInfo->getNamespace()) {
+                return null;
+            }
+            $exploded = explode('\\', $fileInfo->getNamespace());
+            return $exploded[count($exploded) - 1];
+        }, self::$allFilesInfo))));
     }
 
     public static function iterate() {

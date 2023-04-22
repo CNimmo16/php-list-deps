@@ -15,15 +15,15 @@ if (file_exists(__DIR__.'/../vendor/autoload.php')) {
 ini_set('xdebug.max_nesting_level', '3000');
 
 use Cnimmo\ListDeps\DependencyFinder;
-use Cnimmo\ListDeps\Util\FileParsingCache;
 
-$opts = getopt('p:r:', ['paths:', 'root:', 'input-separator:', 'output-separator:', 'allow-missing']);
+$opts = getopt('p:r:', ['paths:', 'root:', 'input-separator:', 'output-separator:', 'allow-missing', 'ignore:']);
 
 $pathOptionValue = $opts['p'] ?? $opts['paths'] ?? null;
 $inputSeparator = $opts['input-separator'] ?? ',';
 $outputSeparator = $opts['output-separator'] ?? PHP_EOL;
 $rootPath = $opts['r'] ?? $opts['root'] ?? null;
 $allowMissing = isset($opts['allow-missing']) ? true : false;
+$ignorePaths = isset($opts['ignore']) ? explode(',', $opts['ignore']) : [];
 
 if (!$pathOptionValue) {
     echo 'No paths specified.'.PHP_EOL;
@@ -40,9 +40,7 @@ if ($invalidPathIndex !== false) {
     exit(1);
 }
 
-FileParsingCache::init($rootPath);
-
-$finder = new DependencyFinder($rootPath, $validatedPaths, !$allowMissing);
+$finder = new DependencyFinder($rootPath, $ignorePaths, $validatedPaths, !$allowMissing);
 
 $dependentFiles = $finder->findDependencies();
 
