@@ -4,9 +4,6 @@ namespace Cnimmo\ListDeps;
 
 use Cnimmo\ListDeps\Singletons\Parser;
 use Cnimmo\ListDeps\Util\FileParsingCache;
-use Cnimmo\ListDeps\Util\ParsedDoc;
-use Cnimmo\ListDeps\Util\Tracker;
-use Cnimmo\ListDeps\Visitors\ImportsVisitor;
 
 class DependencyFinder {
     private array $paths;
@@ -32,17 +29,18 @@ class DependencyFinder {
 
         $dependentFiles = [];
         foreach ($this->paths as $path) {
-            array_push(
-                $dependentFiles,
-                ...$this->findDependenciesForFile($path, $this->throwOnMissing, $dependentFiles)
-            );
+            $dependentFiles[$path] = [];
+            $dependentFiles[$path] = $this->findDependenciesForFile($path, $this->throwOnMissing, $dependentFiles[$path]);
         }
         return $dependentFiles;
     }
 
+    private array $importsByPath = [];
     private function getImports(string $path) {
-        $imports = Parser::getImports($path);
-        return $imports;
+        if (!isset($this->importsByPath[$path])) {
+            $this->importsByPath[$path] = Parser::getImports($path);
+        }
+        return $this->importsByPath[$path];
     }
 
     private array $existence = [];

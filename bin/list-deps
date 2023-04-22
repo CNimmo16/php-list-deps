@@ -42,6 +42,9 @@ if ($invalidPathIndex !== false) {
 
 $finder = new DependencyFinder($rootPath, $ignorePaths, $validatedPaths, !$allowMissing);
 
-$dependentFiles = $finder->findDependencies();
+$dependentFilesByPath = $finder->findDependencies();
 
-echo implode($outputSeparator, $dependentFiles);
+$flatDependentFiles = [];
+array_walk_recursive($dependentFilesByPath, function($a) use (&$flatDependentFiles) { $flatDependentFiles[] = $a; });
+
+echo implode($outputSeparator, $flatDependentFiles);
