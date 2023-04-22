@@ -39,7 +39,8 @@ class ParsedFileInfo {
                 }, $namespaces)
             );
             if (count($namespaceNames) > 1) {
-                throw new \Exception('Multiple namespaces in file ' . $this->filePath);
+                echo 'ERROR: Multiple namespaces in file ' . $this->filePath . PHP_EOL;
+                exit(1);
             }
             if (count($namespaceNames) === 1) {
                 $this->namespace = $namespaceNames[0];
