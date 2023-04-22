@@ -1,0 +1,22 @@
+{
+    "name": "cnimmo/list-deps",
+    "description": "Find the namespaced dependency references of a given file",
+    "type": "library",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Cnimmo\\ListDeps\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "CNimmo16",
+            "email": "48329714+CNimmo16@users.noreply.github.com"
+        }
+    ],
+    "require": {
+        "php": ">=7.4",
+        "nikic/php-parser": "^4.15"
+    },
+    "bin": ["bin/list-deps"]
+}
